@@ -1,0 +1,19 @@
+# System & Software Requirements for BuildBridge Backend
+
+## Prerequisites
+- Node.js >= 18.0.0
+- PostgreSQL >= 15.0 (for primary data storage)
+- Redis >= 7.0 (for caching, chat limits, session store)
+- Prisma ORM (for schema and query generation)
+
+## Node Package Dependencies
+- express==4.19.2
+- cors==2.8.5
+- dotenv==16.4.5
+- express-validator==7.0.1
+- pg==8.11.5
+- prisma==5.14.0
+- @prisma/client==5.14.0
+- redis==4.6.13
+- ts-node-dev==2.0.0
+- typescript==5.4.5

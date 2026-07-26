@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      String   // "CLIENT", "PROFESSIONAL", "ADMIN"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  profile   Profile?
+}
+
+model Profile {
+  id          String   @id @default(uuid())
+  name        String
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleTitle   String?  // e.g. "Architect", "General Contractor"
+  location    String?
+  hourlyRate  Float?
+  bio         String?
+  rating      Float    @default(0.0)
+  reviewsCount Int     @default(0)
+  verified    Boolean  @default(false)
+  tags        String[]
+  avatarUrl   String?
+  bookings    Booking[]
+}
+
+model Property {
+  id          String   @id @default(uuid())
+  title       String
+  price       Float
+  type        String   // "BUY", "RENT"
+  rooms       String
+  location    String
+  imageUrl    String
+  verified    Boolean  @default(false)
+  tags        String[]
+  createdAt   DateTime @default(now())
+}
+
+model Booking {
+  id          String   @id @default(uuid())
+  clientId    String
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [id])
+  date        DateTime
+  status      String   // "PENDING", "APPROVED", "CANCELLED"
+  notes       String?
+  createdAt   DateTime @default(now())
+}
