@@ -6,12 +6,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   email     String   @unique
   password  String
   role      String   // "CLIENT", "PROFESSIONAL", "ADMIN"
@@ -21,9 +21,9 @@ model User {
 }
 
 model Profile {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String
-  userId      String   @unique
+  userId      String   @unique @db.ObjectId
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   roleTitle   String?  // e.g. "Architect", "General Contractor"
   location    String?
@@ -38,7 +38,7 @@ model Profile {
 }
 
 model Property {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   price       Float
   type        String   // "BUY", "RENT"
@@ -51,12 +51,13 @@ model Property {
 }
 
 model Booking {
-  id          String   @id @default(uuid())
-  clientId    String
-  profileId   String
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  clientId    String   @db.ObjectId
+  profileId   String   @db.ObjectId
   profile     Profile  @relation(fields: [profileId], references: [id])
   date        DateTime
   status      String   // "PENDING", "APPROVED", "CANCELLED"
   notes       String?
   createdAt   DateTime @default(now())
 }
+
