@@ -19,8 +19,12 @@ const allowedOrigins = [
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    // Allow exact matches or subdomains under vercel.app
-    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+    
+    // Check if origin is localhost or 127.0.0.1 with any port
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    
+    // Allow exact matches, Vercel subdomains, or localhost
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || isLocalhost) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
