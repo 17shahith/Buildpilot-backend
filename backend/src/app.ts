@@ -83,7 +83,7 @@ const properties = [
 ];
 
 // AI Estimation Route
-app.post('/api/estimate', (req: Request, res: Response) => {
+app.post('/api/estimate', async (req: Request, res: Response) => {
   const { area, quality, floors, type } = req.body;
 
   const baseRate = type === 'renovation' ? 120 : 190;
@@ -91,7 +91,7 @@ app.post('/api/estimate', (req: Request, res: Response) => {
   
   const estimatedCost = area * baseRate * qualityMultiplier * (1 + (floors - 1) * 0.15);
 
-  const materials = [
+  const localMaterials = [
     { name: 'Cement (50kg bags)', qty: Math.round(area * 0.4 * qualityMultiplier), unitCost: 12 },
     { name: 'Bricks (Red clay)', qty: Math.round(area * 45 * qualityMultiplier), unitCost: 0.65 },
     { name: 'Steel rebars (tons)', qty: Number((area * 0.007 * qualityMultiplier).toFixed(2)), unitCost: 1100 },
@@ -100,7 +100,7 @@ app.post('/api/estimate', (req: Request, res: Response) => {
     { name: 'Paint (litres)', qty: Math.round(area * 0.8 * (quality === 'luxury' ? 1.5 : 1)), unitCost: 8 }
   ];
 
-  const breakdown = [
+  const localBreakdown = [
     { category: 'Excavation & Foundations', percentage: 15 },
     { category: 'Structural Frame & Pillars', percentage: 35 },
     { category: 'Brickwork & Plastering', percentage: 15 },
@@ -112,17 +112,99 @@ app.post('/api/estimate', (req: Request, res: Response) => {
     cost: Math.round(estimatedCost * (item.percentage / 100))
   }));
 
-  res.json({
+  const localResponse = {
     totalEstimate: Math.round(estimatedCost),
-    materials,
-    breakdown,
+    materials: localMaterials,
+    breakdown: localBreakdown,
     currency: 'USD',
     optimizations: [
       'Switching to AAC blocks instead of red bricks can save up to 8% of structural cost.',
       'Procuring aggregates directly from quarries reduces material delivery markups by 12%.',
-      'Implementing high-grade fly-ash cement reduces thermal cracking and foundation cost by 4%.'
+      'Implementing high-grade fly-ash cement reduces thermal cracking and foundation cost by 4%'
     ]
-  });
+  };
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    console.log('[AI Estimator] GROQ_API_KEY not found in environment, using local programmatic calculator.');
+    return res.json(localResponse);
+  }
+
+  try {
+    const prompt = `You are a professional construction estimator. Compute a realistic bill of quantities and structural cost estimate for a construction project with:
+- Area: ${area} square feet
+- Specification Quality: ${quality} (choices: standard, premium, luxury)
+- Number of floors: ${floors}
+- Build Type: ${type} (choices: new, renovation)
+
+You MUST respond with a JSON object following this EXACT schema, containing realistic calculated numbers:
+{
+  "totalEstimate": number (overall cost in USD),
+  "materials": [
+    { "name": string, "qty": number, "unitCost": number }
+  ],
+  "breakdown": [
+    { "category": string, "percentage": number }
+  ],
+  "currency": "USD",
+  "optimizations": [
+    string (construction cost saving tips)
+  ]
+}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
+
+    const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          { role: 'system', content: 'You are an AI estimator that outputs ONLY a valid JSON object matching the requested schema.' },
+          { role: 'user', content: prompt }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.2
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!groqResponse.ok) {
+      throw new Error(`Groq API returned status ${groqResponse.status}`);
+    }
+
+    const responseData: any = await groqResponse.json();
+    const content = responseData.choices?.[0]?.message?.content;
+    if (content) {
+      const parsed = JSON.parse(content);
+      if (typeof parsed.totalEstimate === 'number' && Array.isArray(parsed.materials)) {
+        console.log('[AI Estimator] Dynamic estimate successfully generated using Groq AI.');
+        if (Array.isArray(parsed.breakdown)) {
+          parsed.breakdown = parsed.breakdown.map((item: any) => ({
+            ...item,
+            cost: item.cost || Math.round(parsed.totalEstimate * ((item.percentage || 0) / 100))
+          }));
+        }
+        return res.json({
+          totalEstimate: parsed.totalEstimate,
+          materials: parsed.materials,
+          breakdown: parsed.breakdown || localBreakdown,
+          currency: parsed.currency || 'USD',
+          optimizations: parsed.optimizations || localResponse.optimizations
+        });
+      }
+    }
+    throw new Error('Invalid JSON structure returned by Groq AI model');
+  } catch (error: any) {
+    console.error('[AI Estimator Error] Groq API call failed or timed out. Falling back to local calculator:', error?.message || error);
+    return res.json(localResponse);
+  }
 });
 
 // AI Image Defect Detection Route
