@@ -1,22 +1,42 @@
+import 'dotenv/config';
+import http from 'node:http';
 import app from './app';
 import prisma from './database';
+import { getConfig } from './config';
+import { connectRedis, disconnectRedis } from './rateLimit';
 
-const PORT = process.env.PORT || 5000;
+let server: http.Server | undefined;
 
 async function startServer() {
   try {
-    console.log('[BuildBridge API] Connecting to MongoDB via Prisma...');
+    const config = getConfig();
+    console.log('[BuildBridge API] Connecting to PostgreSQL via Prisma...');
     await prisma.$connect();
-    console.log('[BuildBridge API] Database connected successfully!');
-    
-    app.listen(PORT, () => {
-      console.log(`[BuildBridge API] Server running successfully on port ${PORT}`);
-    });
+    await connectRedis();
+    server = app.listen(config.port, () => console.log(`[BuildBridge API] Server listening on port ${config.port}`));
   } catch (error) {
-    console.error('[BuildBridge API] Failed to connect to database on startup:', error);
+    console.error('[BuildBridge API] Startup failed:', error instanceof Error ? error.message : error);
+    await prisma.$disconnect();
     process.exit(1);
   }
 }
 
-startServer();
+async function shutdown(signal: string) {
+  console.log(`[BuildBridge API] ${signal} received; shutting down`);
+  server?.close(async () => {
+    await disconnectRedis();
+    await prisma.$disconnect();
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(1), 10000).unref();
+}
 
+process.once('SIGTERM', () => { void shutdown('SIGTERM'); });
+process.once('SIGINT', () => { void shutdown('SIGINT'); });
+process.on('unhandledRejection', (reason) => console.error('[BuildBridge API] Unhandled rejection:', reason));
+process.on('uncaughtException', (error) => {
+  console.error('[BuildBridge API] Uncaught exception:', error.message);
+  void shutdown('uncaughtException');
+});
+
+void startServer();

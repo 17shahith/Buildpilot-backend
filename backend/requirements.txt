@@ -3,7 +3,7 @@
 ## Prerequisites
 - Node.js >= 18.0.0
 - PostgreSQL >= 15.0 (for primary data storage)
-- Redis >= 7.0 (for caching, chat limits, session store)
+- Redis >= 7.0 (for distributed rate limiting)
 - Prisma ORM (for schema and query generation)
 
 ## Node Package Dependencies
