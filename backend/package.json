@@ -11,6 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "seed": "npm run build && node dist/seed.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"No linting configured\"",
     "test": "npm run build && node --test dist/auth.test.js"
   },
   "dependencies": {

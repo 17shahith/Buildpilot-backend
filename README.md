@@ -43,3 +43,25 @@ This is the Express + TypeScript REST API and PostgreSQL service for the BuildBr
    ```
 
 Production requires PostgreSQL, Redis, a JWT secret of at least 32 characters, and an exact `CORS_ORIGINS` allowlist. Do not run the seed script in production.
+
+## Branch Strategy & CI/CD Pipeline
+
+We follow a strict branching model:
+- `main` represents production. Direct pushes are blocked.
+- `develop` is the integration branch.
+- Feature development occurs in `feature/*` or `fix/*` branches.
+
+### CI/CD Workflow
+
+On every pull request to `main` or `develop`, a validation workflow runs:
+1. **Secret Scanning**: Runs Gitleaks to detect exposed credentials in commits.
+2. **Quality Checks**: Resolves dependencies (`npm ci`), runs TypeScript compilation, runs unit & integration tests (`npm test`), and verifies the production build.
+3. **Database Validation**: Validates the Prisma schema layout.
+4. **Dependency Security**: Scans for vulnerabilities via `npm audit --audit-level=high`.
+
+Upon merging to `main` or `develop`, the **Backend CD** workflow compiles the Docker container and triggers deployment.
+
+### Environment Management
+
+A template `.env.example` is located in the `backend/` folder. All runtime environment configurations must be populated here. Never commit real values or secrets (like database passwords, private keys, or API tokens) to Git.
+

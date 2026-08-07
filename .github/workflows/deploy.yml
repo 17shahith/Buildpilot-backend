@@ -1,0 +1,49 @@
+name: Backend CD
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Backend Service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: buildpilot-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # --- EXAMPLE CONTAINER PLATFORM OR DOCKER COMPOSE DEPLOYMENT ---
+      # For VPS / VM deployments using Docker Compose:
+      # - name: Deploy to VM via SSH
+      #   uses: appleboy/ssh-action@master
+      #   with:
+      #     host: ${{ secrets.SSH_HOST }}
+      #     username: ${{ secrets.SSH_USER }}
+      #     key: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     script: |
+      #       cd /var/www/buildpilot-backend
+      #       git pull origin ${{ github.ref_name }}
+      #       docker compose build backend
+      #       docker compose up -d
+      #
+      # For Managed Container Platforms (e.g., Render, Railway, AWS ECS):
+      # - name: Trigger Deploy Webhook
+      #   run: curl -X POST ${{ secrets.DEPLOY_WEBHOOK_URL }}
