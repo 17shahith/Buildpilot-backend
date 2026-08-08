@@ -6,6 +6,15 @@ let redisClient: RedisClientType | undefined;
 let redisConnectPromise: Promise<void> | undefined;
 const localBuckets = new Map<string, { count: number; resetAt: number }>();
 
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of localBuckets.entries()) {
+    if (bucket.resetAt <= now) {
+      localBuckets.delete(key);
+    }
+  }
+}, 60000).unref();
+
 async function getRedis(): Promise<RedisClientType | undefined> {
   const { redisUrl } = getConfig();
   if (!redisUrl) return undefined;

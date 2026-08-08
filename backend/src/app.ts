@@ -152,6 +152,7 @@ app.get('/api/professionals', asyncHandler(async (req, res) => {
   const location = optionalString(req.query.location, 'location', 100);
   const search = optionalString(req.query.search, 'search', 100);
   const where: Prisma.ProfileWhereInput = {
+    user: { role: 'PROFESSIONAL' },
     ...(role ? { roleTitle: { contains: role, mode: 'insensitive' } } : {}),
     ...(location ? { location: { contains: location, mode: 'insensitive' } } : {}),
     ...(search ? { OR: [
