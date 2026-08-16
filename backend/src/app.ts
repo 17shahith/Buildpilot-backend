@@ -34,7 +34,7 @@ app.get('/', (_req: Request, res: Response) => {
 });
 
 app.get('/api/health', asyncHandler(async (_req, res) => {
-  await prisma.$queryRaw`SELECT 1`;
+  await prisma.user.findFirst();
   res.json({ status: 'healthy', uptime: process.uptime(), version: '1.0.0' });
 }));
 
@@ -275,6 +275,58 @@ app.patch('/api/bookings/:id/cancel', requireAuth, asyncHandler(async (req, res)
 app.post('/api/upload', requireAuth, rateLimit('upload', 10, 60), (_req, res) => {
   res.status(501).json({ error: 'File upload storage is not configured for this deployment' });
 });
+
+app.get('/api/leads', requireAuth, asyncHandler(async (req, res) => {
+  const leads = await prisma.lead.findMany({ orderBy: { createdAt: 'desc' } });
+  res.json({ data: leads });
+}));
+
+app.post('/api/quotes', requireAuth, rateLimit('quotes', 10, 60), asyncHandler(async (req, res) => {
+  const user = (req as AuthenticatedRequest).user!;
+  const clientName = requireString(req.body?.clientName, 'clientName', 1, 100);
+  const materialCost = finiteNumber(req.body?.materialCost, 'materialCost', 0, 100000000);
+  const laborCost = finiteNumber(req.body?.laborCost, 'laborCost', 0, 100000000);
+  const totalCost = materialCost + laborCost;
+  const remarks = optionalString(req.body?.remarks, 'remarks', 2000);
+  const quote = await prisma.quote.create({
+    data: { professionalId: user.id, clientName, materialCost, laborCost, totalCost, remarks }
+  });
+  res.status(201).json(quote);
+}));
+
+app.get('/api/admin/applications', requireAuth, asyncHandler(async (req, res) => {
+  const user = (req as AuthenticatedRequest).user!;
+  if (user.role !== 'ADMIN') { res.status(403).json({ error: 'Forbidden' }); return; }
+  const apps = await prisma.proApplication.findMany({ where: { status: 'Pending' } });
+  res.json({ data: apps });
+}));
+
+app.patch('/api/admin/applications/:id', requireAuth, asyncHandler(async (req, res) => {
+  const user = (req as AuthenticatedRequest).user!;
+  if (user.role !== 'ADMIN') { res.status(403).json({ error: 'Forbidden' }); return; }
+  const id = requireString(req.params.id, 'id', 1, 100);
+  const status = requireString(req.body?.status, 'status', 1, 50);
+  const updated = await prisma.proApplication.update({ where: { id }, data: { status } });
+  if (status === 'Approved') {
+    await prisma.user.update({ where: { id: updated.userId }, data: { role: 'PROFESSIONAL' } });
+  }
+  res.json(updated);
+}));
+
+app.get('/api/admin/flags', requireAuth, asyncHandler(async (req, res) => {
+  const user = (req as AuthenticatedRequest).user!;
+  if (user.role !== 'ADMIN') { res.status(403).json({ error: 'Forbidden' }); return; }
+  const flags = await prisma.flaggedPost.findMany();
+  res.json({ data: flags });
+}));
+
+app.delete('/api/admin/flags/:id', requireAuth, asyncHandler(async (req, res) => {
+  const user = (req as AuthenticatedRequest).user!;
+  if (user.role !== 'ADMIN') { res.status(403).json({ error: 'Forbidden' }); return; }
+  const id = requireString(req.params.id, 'id', 1, 100);
+  await prisma.flaggedPost.delete({ where: { id } });
+  res.status(204).send();
+}));
 
 app.use(errorHandler);
 

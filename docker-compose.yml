@@ -1,17 +1,4 @@
 services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: buildbridge
-      POSTGRES_USER: buildbridge
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U buildbridge -d buildbridge"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
   redis:
     image: redis:7-alpine
@@ -29,19 +16,18 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
-      DATABASE_URL: postgresql://buildbridge:${POSTGRES_PASSWORD}@postgres:5432/buildbridge?schema=public
+      DATABASE_URL: mongodb+srv://buildcare:buildcare@cluster0.5hno2fn.mongodb.net/buildbridge?appName=Cluster0
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS}
     ports:
       - "5000:5000"
     depends_on:
-      postgres:
-        condition: service_healthy
+
       redis:
         condition: service_healthy
-    command: ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+    command: ["sh", "-c", "node dist/server.js"]
 
 volumes:
-  postgres-data:
+
   redis-data:

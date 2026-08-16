@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -25,20 +25,22 @@ enum BookingStatus {
 }
 
 model User {
-  id        String    @id @default(cuid())
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
   email     String    @unique
   password  String
   role      Role
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  profile   Profile?
-  bookings  Booking[]
+  profile      Profile?
+  bookings     Booking[]
+  quotes       Quote[]
+  applications ProApplication[]
 }
 
 model Profile {
-  id          String    @id @default(cuid())
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
   name        String
-  userId      String    @unique
+  userId      String    @unique @db.ObjectId
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   roleTitle   String?
   location    String?
@@ -54,7 +56,7 @@ model Profile {
 }
 
 model Property {
-  id        String       @id @default(cuid())
+  id        String       @id @default(auto()) @map("_id") @db.ObjectId
   title     String
   price     Float
   type      PropertyType
@@ -70,10 +72,10 @@ model Property {
 }
 
 model Booking {
-  id        String        @id @default(cuid())
-  clientId  String
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  clientId  String        @db.ObjectId
   client    User          @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  profileId String
+  profileId String        @db.ObjectId
   profile   Profile       @relation(fields: [profileId], references: [id], onDelete: Restrict)
   date      DateTime
   status    BookingStatus @default(PENDING)
@@ -82,4 +84,49 @@ model Booking {
 
   @@index([clientId])
   @@index([profileId, date])
+}
+
+model Lead {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  client    String
+  details   String
+  budget    Float
+  date      String
+  urgency   String
+  createdAt DateTime @default(now())
+}
+
+model Quote {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  professionalId String   @db.ObjectId
+  professional   User     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  clientName     String
+  materialCost   Float
+  laborCost      Float
+  totalCost      Float
+  remarks        String?
+  createdAt      DateTime @default(now())
+
+  @@index([professionalId])
+}
+
+model ProApplication {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  role      String
+  license   String
+  date      String
+  status    String   @default("Pending")
+  createdAt DateTime @default(now())
+}
+
+model FlaggedPost {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  type      String
+  title     String
+  reason    String
+  date      String
+  createdAt DateTime @default(now())
 }
