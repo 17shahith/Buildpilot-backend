@@ -34,8 +34,8 @@ export function getConfig(): AppConfig {
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error('DATABASE_URL is required');
-  if (!databaseUrl.startsWith('postgresql://') && !databaseUrl.startsWith('postgres://')) {
-    throw new Error('DATABASE_URL must use the PostgreSQL protocol');
+  if (!databaseUrl.startsWith('postgresql://') && !databaseUrl.startsWith('postgres://') && !databaseUrl.startsWith('mongodb://') && !databaseUrl.startsWith('mongodb+srv://')) {
+    throw new Error('DATABASE_URL must use a valid protocol (postgresql or mongodb)');
   }
 
   const jwtSecret = process.env.JWT_SECRET;
